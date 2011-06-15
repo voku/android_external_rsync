@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR([byteorder.h])
 AC_CONFIG_HEADER(config.h)
 AC_PREREQ(2.59)
 
-RSYNC_VERSION=3.0.8dev
+RSYNC_VERSION=3.0.8
 AC_SUBST(RSYNC_VERSION)
 AC_MSG_NOTICE([Configuring rsync $RSYNC_VERSION])
 
@@ -428,8 +428,10 @@ fi
 
 AC_SEARCH_LIBS(inet_ntop, resolv)
 
-# Solaris and HP-UX weirdness:
-# Search for libiconv_open (not iconv_open) to discover if -liconv is needed!
+# For OS X, Solaris, HP-UX, etc.: figure out if -liconv is needed.  We'll
+# accept either iconv_open or libiconv_open, since some include files map
+# the former to the latter.
+AC_SEARCH_LIBS(iconv_open, iconv)
 AC_SEARCH_LIBS(libiconv_open, iconv)
 
 AC_MSG_CHECKING([for iconv declaration])
@@ -571,7 +573,8 @@ AC_CHECK_FUNCS(waitpid wait4 getcwd strdup chown chmod lchmod mknod mkfifo \
     strlcat strlcpy strtol mallinfo getgroups setgroups geteuid getegid \
     setlocale setmode open64 lseek64 mkstemp64 mtrace va_copy __va_copy \
     seteuid strerror putenv iconv_open locale_charset nl_langinfo getxattr \
-    extattr_get_link sigaction sigprocmask setattrlist)
+    extattr_get_link sigaction sigprocmask setattrlist \
+    utimensat)
 
 dnl cygwin iconv.h defines iconv_open as libiconv_open
 if test x"$ac_cv_func_iconv_open" != x"yes"; then
@@ -968,11 +971,16 @@ else
 	AC_MSG_RESULT(Using OS X xattrs)
 	AC_DEFINE(HAVE_OSX_XATTRS, 1, [True if you have Mac OS X xattrs])
 	AC_DEFINE(SUPPORT_XATTRS, 1)
+	AC_DEFINE(NO_DEVICE_XATTRS, 1, [True if device files do not support xattrs])
+	AC_DEFINE(NO_SPECIAL_XATTRS, 1, [True if special files do not support xattrs])
 	;;
     freebsd*)
 	AC_MSG_RESULT(Using FreeBSD extattrs)
 	AC_DEFINE(HAVE_FREEBSD_XATTRS, 1, [True if you have FreeBSD xattrs])
 	AC_DEFINE(SUPPORT_XATTRS, 1)
+	;;
+    for_some_future_os_need)
+	AC_DEFINE(NO_SYMLINK_XATTRS, 1, [True if symlinks do not support xattrs])
 	;;
     *)
 	if test x"$enable_xattr_support" = x"yes"; then
