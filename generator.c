@@ -630,7 +630,7 @@ int unchanged_attrs(const char *fname, struct file_struct *file, stat_x *sxp)
 		if (perms_differ(file, sxp))
 			return 0;
 #endif
-#ifndef CAN_CHOWN_SYMLINK
+#ifdef CAN_CHOWN_SYMLINK
 		if (ownership_differs(file, sxp))
 			return 0;
 #endif
@@ -1355,7 +1355,7 @@ static void recv_generator(char *fname, struct file_struct *file, int ndx,
 				handle_skipped_hlink(file, itemizing, code, f_out);
 #endif
 			rprintf(FERROR_XFER,
-				"skipping daemon-excluded %s \"%s\"\n",
+				"ERROR: daemon refused to receive %s \"%s\"\n",
 				is_dir ? "directory" : "file", fname);
 			if (is_dir)
 				goto skipping_dir_contents;
@@ -2142,10 +2142,16 @@ void check_for_finished_files(int itemizing, enum logcode code, int check_redo)
 	while (1) {
 #ifdef SUPPORT_HARD_LINKS
 		if (preserve_hard_links && (ndx = get_hlink_num()) != -1) {
+			int send_failed = (ndx == -2);
+			if (send_failed)
+				ndx = get_hlink_num();
 			flist = flist_for_ndx(ndx, "check_for_finished_files.1");
 			file = flist->files[ndx - flist->ndx_start];
 			assert(file->flags & FLAG_HLINKED);
-			finish_hard_link(file, f_name(file, fbuf), ndx, NULL, itemizing, code, -1);
+			if (send_failed)
+				handle_skipped_hlink(file, itemizing, code, sock_f_out);
+			else
+				finish_hard_link(file, f_name(file, fbuf), ndx, NULL, itemizing, code, -1);
 			flist->in_progress--;
 			continue;
 		}
